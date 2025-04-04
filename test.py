@@ -45,7 +45,7 @@ class WeatherTool(BaseTool):
         # 模拟天气查询
         return f"{city}在{date}的天气是：晴朗，温度25°C"
 
-def chat_io(agent: Agent, question: str, stream: bool = True):
+def chat_io(agent: Agent, question: str):
     """测试单个对话"""
     print(f"用户: {question}")
     print("助手: ", end='', flush=True)
@@ -53,15 +53,11 @@ def chat_io(agent: Agent, question: str, stream: bool = True):
     response = agent.chat(
         question,
         model="deepseek-chat",
-        temperature=0.7,
-        stream=stream
+        temperature=0.7
     )
     
-    if stream:
-        for chunk in response:
-            print(chunk, end='', flush=True)
-    else:
-        print(response)
+    for chunk in response:
+        print(chunk, end='', flush=True)
     print("\n")
 
 def test_agent_features():
@@ -71,16 +67,13 @@ def test_agent_features():
     llm = DeepSeekLLM(api_key)
     
     # 1. 创建基础助手
-    print("\n=== 1. 创建基础助手 ===")
     base_agent = Agent(
         name="安娜",
         backstory="你是一个漂亮的大姐姐，喜欢帮助别人，喜欢开玩笑",
         goal="提供准确和有用的帮助，并总结问题",
         llm=llm,
-        tools=[CalculatorTool, WeatherTool]
+        tools=[CalculatorTool(), WeatherTool()]
     )
-
-    base_agent.llm.dump_session()
 
     #帮我计算5 sp 7
     chat_io(base_agent, "现在有一个问题："

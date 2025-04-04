@@ -7,13 +7,25 @@ from typing import Type
 class Agent:
     """A conversational agent that can use tools and maintain context."""
     
+    name: str
+    backstory: str
+    goal: str
+    llm: LLMBase
+    tools: List[BaseTool]
+    function_call: FunctionCall
+
+    allow_ask_other: bool #是否允许询问其他人
+    
     def __init__(
         self,
         name: str,
         backstory: str,
         goal: str,
         llm: LLMBase,
-        tools: List[Type[BaseTool]] = None
+        default_model: str ,
+        tools: List[BaseTool] = None ,
+        default_temperature: float = 0.7,
+        allow_ask_other: bool = False
     ):
         """
         Initialize an agent with its identity and capabilities.
@@ -30,7 +42,12 @@ class Agent:
         self.goal = goal
         self.llm = llm
         self.function_call = FunctionCall()
-        
+        self.allow_ask_other = allow_ask_other
+        self.default_temperature = default_temperature
+        self.default_model = default_model
+
+
+
         # Initialize tools if provided
         if tools:
             for tool in tools:
@@ -42,8 +59,10 @@ class Agent:
     def _update_system_message(self):
         """Update the system message with current agent identity and tools."""
         # Base system message with agent identity
-        base_content = f"""You are {self.name}\n,your backstory: {self.backstory}\n
-Your goal is: {self.goal}\n"""
+        base_content = f"""
+        You are {self.name}\n
+        Your backstory: {self.backstory}\n
+        Your goal: {self.goal}\n"""
 
         # Add tools information if any tools are available
         tools_prompt = self.function_call.get_system_prompt()
@@ -70,7 +89,7 @@ Your goal is: {self.goal}\n"""
             # If session is empty, just add the system message
             self.llm.session = [self.system_message]
     
-    def chat(self, message: str, model:str=None,temperature:float=0.7,stream:bool=True) -> Union[Generator[str, None, None], str]:
+    def chat(self, message: str, model:str=None,temperature:float=0.7) -> Generator[str, None, None]:
         """
         Have a conversation with the agent.
         
@@ -78,10 +97,9 @@ Your goal is: {self.goal}\n"""
             message: The user's message
             model: The model to use
             temperature: The temperature to use
-            stream: Whether to stream the response
             
         Returns:
-            Either a generator yielding response chunks or the complete response string
+            A generator yielding response chunks
         """
         # Add user message to session
         user_message = LLMMessage(role="user", content=message)
@@ -91,33 +109,23 @@ Your goal is: {self.goal}\n"""
         response = self.llm.chat_with_context(
             message,
             model=model,
-            temperature=temperature,
-            stream=stream
+            temperature=temperature
         )
         
-        if stream:
-            buffer = ""
-            # Handle streaming response with function calls
-            tool_response = self.function_call.handle_stream(response)
-            for chunk in tool_response:
-                buffer += chunk
-                yield chunk
-            self.llm.chat_with_context(
-                LLMMessage(role="assistant", content=buffer),
-                model=model,
-                temperature=temperature,
-                stream=stream
-            )
-        else:
-            # Handle non-streaming response with function calls
-            buffer = self.function_call.handle_completion(response)
-            self.llm.chat_with_context(
-                LLMMessage(role="assistant", content=buffer),
-                model=model,
-                temperature=temperature,
-                stream=stream
-            )
-            return buffer
+        buffer = ""
+        # Handle streaming response with function calls
+        tool_response = self.function_call.handle_stream(response)
+        for chunk in tool_response:
+            buffer += chunk
+            yield chunk
+        self.llm.chat_with_context(
+            LLMMessage(role="assistant", content=buffer),
+            model=model,
+            temperature=temperature
+        )
+    
+    def chat_default(self,message:str,**kwargs) -> Generator[str, None, None]:
+        return self.chat(message,self.default_model,self.default_temperature,**kwargs)
     
     def clear_context(self):
         """Clear the conversation history while maintaining the system message."""

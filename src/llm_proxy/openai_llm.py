@@ -16,15 +16,14 @@ class OpenAILLM(LLMBase):
         messages: List[Dict[str,str]],
         model: str,
         temperature: float = 0.7,
-        stream: bool = False,
         **kwargs
-    ) -> Generator[str, None, None] | str:
+    ) -> Generator[str, None, None]:
         url = f"{self.base_url}/chat/completions"
         data = {
             "messages": messages,
             "model": model,
             "temperature": temperature,
-            "stream": stream,
+            "stream": True,
             **kwargs
         }
 
@@ -32,17 +31,13 @@ class OpenAILLM(LLMBase):
             url,
             headers=self.headers,
             json=data,
-            stream=stream
+            stream=True
         )
 
         if response.status_code != 200:
             raise Exception(f"API请求失败，状态码：{response.status_code}，错误：{response.text}")
 
-        if stream:
-            return self._handle_stream_response(response)
-        else:
-            return response.json()['choices'][0]['message']['content']
-    
+        return self._handle_stream_response(response)
 
     def _handle_stream_response(self, response: requests.Response) -> Generator[str, None, None]:
         """
