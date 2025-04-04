@@ -3,7 +3,7 @@ from src.llm_proxy import DeepSeekLLM, BaseTool
 from src.agent import Agent
 from pydantic import BaseModel
 from typing import List
-
+import os
 # 定义计算器工具
 class CalculatorSchema(BaseModel):
     x: float
@@ -67,7 +67,7 @@ def chat_io(agent: Agent, question: str, stream: bool = True):
 def test_agent_features():
     """测试 Agent 的各种功能"""
     # 初始化 LLM
-    api_key = "sk-3009ef3b9d00438d9cc836a0aa7584ea"  # 替换为实际的 API key
+    api_key = os.environ.get("MODEL_API_KEY")  # 替换为实际的 API key
     llm = DeepSeekLLM(api_key)
     
     # 1. 创建基础助手
